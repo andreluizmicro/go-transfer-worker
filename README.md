@@ -1,6 +1,6 @@
 # GO transfer Worker
 
-API responsável por receber transferências e notificar os usuários sobre transações
+Worker responsável por receber transferências e enviar para o gateway de notificação de transação.
 
 ### Architecture
 
