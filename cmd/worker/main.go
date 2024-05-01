@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"log"
 
@@ -32,19 +31,19 @@ func main() {
 	defer ch.Close()
 
 	msgs := make(chan amqp.Delivery)
-	go rabbitmq.Cosume(ch, msgs)
+	go rabbitmq.Cosume(ch, cfg, msgs)
 
 	for msg := range msgs {
 		dto := queue.TransferDto{}
 		dto.Unmarhal(msg.Body)
 
 		log.Printf("Message received %s", string(msg.Body))
-		err := NotifyTransfer(ch, notificationGateway, dto)
+		err := NotifyTransfer(ch, cfg, notificationGateway, dto)
 		if err != nil {
 			log.Println(err.Error())
 		}
 
-		err = PublishMessageInDeadLetterQueue(ch, msg.Body)
+		err = PublishMessageInDeadLetterQueue(ch, cfg, msg.Body)
 		if err != nil {
 			log.Println(err)
 		}
@@ -56,20 +55,20 @@ func main() {
 	}
 }
 
-func NotifyTransfer(ch *amqp.Channel, gateway *gateway.NotificationGateway, transferDto queue.TransferDto) error {
+func NotifyTransfer(ch *amqp.Channel, cfg *config.AppConfig, gateway *gateway.NotificationGateway, transferDto queue.TransferDto) error {
 	err := gateway.Notify(transferDto)
 	if err != nil {
 		data, _ := transferDto.Marshal()
-		PublishMessageInDeadLetterQueue(ch, data)
+		PublishMessageInDeadLetterQueue(ch, cfg, data)
 		return err
 	}
 	return nil
 }
 
-func PublishMessageInDeadLetterQueue(ch *amqp.Channel, data []byte) error {
-	rabbitmq.Publish(ch, data)
+func PublishMessageInDeadLetterQueue(ch *amqp.Channel, cfg *config.AppConfig, data []byte) error {
+	rabbitmq.Publish(ch, cfg, data)
 
-	return errors.New(
+	return fmt.Errorf(
 		fmt.Sprintf("Publish message in dead letter queue %s", string(data)),
 	)
 }

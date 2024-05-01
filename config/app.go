@@ -8,7 +8,10 @@ type AppConfig struct {
 	NotificationClientBaseUrl    string `mapstructure:"NOTIFICATION_CLIENT_BASE_URL"`
 	NotificationClientTimeout    string `mapstructure:"NOTIFICATION_CLIENT_TIMEOUT"`
 	NotificationClientMaxRetries string `mapstructure:"NOTIFICATION_CLIENT_MAX_RETRIES"`
-	RabbitMQConnection           string `mapstructure:"RABBITMQ_CONNECTION"`
+	RabbitMQConnectionUrl        string `mapstructure:"RABBITMQ_CONNECTION_URL"`
+	RabbitMQQueueName            string `mapstructure:"RABBITMQ_QUEUE_NAME"`
+	RabbitMQQueueConsumerName    string `mapstructure:"RABBITMQ_CONSUMER_NAME"`
+	RabbitMQQueueExchangeDLQ     string `mapstructure:"RABBITMQ_EXCHANGE_DLQ"`
 }
 
 func LoadConfig(path string) (*AppConfig, error) {

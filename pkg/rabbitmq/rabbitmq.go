@@ -9,7 +9,7 @@ import (
 )
 
 func OpenChannel(cfg *config.AppConfig) (*amqp.Channel, error) {
-	conn, err := amqp.Dial(cfg.RabbitMQConnection)
+	conn, err := amqp.Dial(cfg.RabbitMQConnectionUrl)
 	if err != nil {
 		return nil, err
 	}
@@ -20,10 +20,10 @@ func OpenChannel(cfg *config.AppConfig) (*amqp.Channel, error) {
 	return ch, nil
 }
 
-func Cosume(ch *amqp.Channel, out chan amqp.Delivery) error {
+func Cosume(ch *amqp.Channel, cfg *config.AppConfig, out chan amqp.Delivery) error {
 	msgs, err := ch.Consume(
-		"RABBITMQ_CONNECTION",
-		"go-transfer-consume",
+		cfg.RabbitMQQueueName,
+		cfg.RabbitMQQueueConsumerName,
 		false,
 		false,
 		false,
@@ -40,7 +40,7 @@ func Cosume(ch *amqp.Channel, out chan amqp.Delivery) error {
 	return nil
 }
 
-func Publish(ch *amqp.Channel, msg []byte) error {
+func Publish(ch *amqp.Channel, cfg *config.AppConfig, msg []byte) error {
 	mp := amqp.Publishing{
 		DeliveryMode: amqp.Persistent,
 		Timestamp:    time.Now(),
@@ -52,7 +52,7 @@ func Publish(ch *amqp.Channel, msg []byte) error {
 	defer cancel()
 	return ch.PublishWithContext(
 		ctx,
-		"transfer_exchange_dlq",
+		cfg.RabbitMQQueueExchangeDLQ,
 		"",
 		false,
 		false,
