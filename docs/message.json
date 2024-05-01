@@ -1,0 +1,6 @@
+{
+    "id": "int",
+    "payer_id": "int",
+    "payee_id": "int",
+    "value": "float"
+}

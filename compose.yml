@@ -1,0 +1,21 @@
+version: '3'
+
+services:
+  app:
+    container_name: go-transfer-worker
+    build:
+      context: ./
+      dockerfile: .setup/build/dev/Dockerfile
+    ports:
+      - "9000:9000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+      #- "host.docker.internal"
+    networks:
+      - go-transfer-worker-networks
+    volumes:
+      - .:/app
+
+networks:
+  go-transfer-worker-networks:
+    driver: bridge
