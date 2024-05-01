@@ -1,6 +1,8 @@
 package main
 
 import (
+	"errors"
+	"fmt"
 	"log"
 
 	"github.com/andreluizmicro/go-driver/config"
@@ -37,29 +39,37 @@ func main() {
 		dto.Unmarhal(msg.Body)
 
 		log.Printf("Message received %s", string(msg.Body))
-		NotifyTransfer(notificationGateway, dto)
+		err := NotifyTransfer(ch, notificationGateway, dto)
+		if err != nil {
+			log.Println(err.Error())
+		}
 
-		err := msg.Ack(false)
+		err = PublishMessageInDeadLetterQueue(ch, msg.Body)
+		if err != nil {
+			log.Println(err)
+		}
+
+		err = msg.Ack(false)
 		if err != nil {
 			log.Printf("Erro ao confirmar a mensagem: %v", err)
 		}
 	}
 }
 
-func NotifyTransfer(gateway *gateway.NotificationGateway, transferDto queue.TransferDto) error {
+func NotifyTransfer(ch *amqp.Channel, gateway *gateway.NotificationGateway, transferDto queue.TransferDto) error {
 	err := gateway.Notify(transferDto)
 	if err != nil {
-		data, err := transferDto.Marshal()
-		if err != nil {
-			PublishMessageInDeadLetterQueue(data)
-		}
-		PublishMessageInDeadLetterQueue(data)
+		data, _ := transferDto.Marshal()
+		PublishMessageInDeadLetterQueue(ch, data)
 		return err
 	}
 	return nil
 }
 
-func PublishMessageInDeadLetterQueue(data []byte) error {
-	log.Printf("Publish message in dead letter queue %s", string(data))
-	return nil
+func PublishMessageInDeadLetterQueue(ch *amqp.Channel, data []byte) error {
+	rabbitmq.Publish(ch, data)
+
+	return errors.New(
+		fmt.Sprintf("Publish message in dead letter queue %s", string(data)),
+	)
 }
