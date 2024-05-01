@@ -9,10 +9,10 @@ type TransferDto struct {
 	Value   float64 `json:"value"`
 }
 
-func (q *TransferDto) Marshal() ([]byte, error) {
-	return json.Marshal(q)
+func (t *TransferDto) Marshal() ([]byte, error) {
+	return json.Marshal(t)
 }
 
-func (q *TransferDto) Unmarhal(data []byte) error {
-	return json.Unmarshal(data, q)
+func (t *TransferDto) Unmarhal(data []byte) error {
+	return json.Unmarshal(data, t)
 }

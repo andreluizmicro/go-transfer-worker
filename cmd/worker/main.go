@@ -47,5 +47,19 @@ func main() {
 }
 
 func NotifyTransfer(gateway *gateway.NotificationGateway, transferDto queue.TransferDto) error {
-	return gateway.Notify(transferDto)
+	err := gateway.Notify(transferDto)
+	if err != nil {
+		data, err := transferDto.Marshal()
+		if err != nil {
+			PublishMessageInDeadLetterQueue(data)
+		}
+		PublishMessageInDeadLetterQueue(data)
+		return err
+	}
+	return nil
+}
+
+func PublishMessageInDeadLetterQueue(data []byte) error {
+	log.Printf("Publish message in dead letter queue %s", string(data))
+	return nil
 }

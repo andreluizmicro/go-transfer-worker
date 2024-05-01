@@ -9,6 +9,7 @@ import (
 type NotificationClient struct {
 	BaseUrl string
 	Timeout int
+	Retries int
 }
 
 func NewAuthorizationClient(cfg *config.AppConfig) (*NotificationClient, error) {
@@ -18,8 +19,15 @@ func NewAuthorizationClient(cfg *config.AppConfig) (*NotificationClient, error) 
 		timeout = 10
 	}
 
+	retriesStr := cfg.NotificationClientMaxRetries
+	retries, err := strconv.Atoi(retriesStr)
+	if err != nil {
+		timeout = 10
+	}
+
 	return &NotificationClient{
 		BaseUrl: cfg.NotificationClientBaseUrl,
 		Timeout: timeout,
+		Retries: retries,
 	}, nil
 }
