@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 
 	"github.com/andreluizmicro/go-driver/config"
@@ -12,40 +11,35 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
+type AppConfigs struct {
+	Configs            *config.AppConfig
+	NotificationClient *client.NotificationClient
+}
+
 func main() {
-	cfg, err := config.LoadConfig("../")
-	if err != nil {
-		panic(err)
-	}
+	AppConfig := getConfigs()
 
-	notificationClient, err := client.NewAuthorizationClient(cfg)
-	if err != nil {
-		panic(err)
-	}
-	notificationGateway := gateway.NewNotificationGateway(notificationClient)
+	notificationGateway := gateway.NewNotificationGateway(AppConfig.NotificationClient)
 
-	ch, err := rabbitmq.OpenChannel(cfg)
-	if err != nil {
-		panic(err)
-	}
-	defer ch.Close()
+	rabbitMQ := rabbitmq.NewRabbitMQConnection(AppConfig.Configs)
+	defer rabbitMQ.RabbitMQChannel.Close()
 
 	msgs := make(chan amqp.Delivery)
-	go rabbitmq.Cosume(ch, cfg, msgs)
+	go rabbitMQ.Cosume(msgs)
 
 	for msg := range msgs {
 		dto := queue.TransferDto{}
 		dto.Unmarhal(msg.Body)
 
 		log.Printf("Message received %s", string(msg.Body))
-		err := NotifyTransfer(ch, cfg, notificationGateway, dto)
-		if err != nil {
-			log.Println(err.Error())
-		}
 
-		err = PublishMessageInDeadLetterQueue(ch, cfg, msg.Body)
+		err := notificationGateway.Notify(dto)
 		if err != nil {
-			log.Println(err)
+			err := rabbitMQ.Publish(msg.Body)
+			if err != nil {
+				log.Println(err)
+			}
+			log.Printf("Publish message in dead letter queue %s", string(msg.Body))
 		}
 
 		err = msg.Ack(false)
@@ -55,20 +49,19 @@ func main() {
 	}
 }
 
-func NotifyTransfer(ch *amqp.Channel, cfg *config.AppConfig, gateway *gateway.NotificationGateway, transferDto queue.TransferDto) error {
-	err := gateway.Notify(transferDto)
+func getConfigs() *AppConfigs {
+	cfg, err := config.LoadConfig("../")
 	if err != nil {
-		data, _ := transferDto.Marshal()
-		PublishMessageInDeadLetterQueue(ch, cfg, data)
-		return err
+		panic(err)
 	}
-	return nil
-}
 
-func PublishMessageInDeadLetterQueue(ch *amqp.Channel, cfg *config.AppConfig, data []byte) error {
-	rabbitmq.Publish(ch, cfg, data)
+	notificationClient, err := client.NewAuthorizationClient(cfg)
+	if err != nil {
+		panic(err)
+	}
 
-	return fmt.Errorf(
-		fmt.Sprintf("Publish message in dead letter queue %s", string(data)),
-	)
+	return &AppConfigs{
+		Configs:            cfg,
+		NotificationClient: notificationClient,
+	}
 }

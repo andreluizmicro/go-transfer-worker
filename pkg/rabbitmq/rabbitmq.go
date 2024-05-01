@@ -8,22 +8,45 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-func OpenChannel(cfg *config.AppConfig) (*amqp.Channel, error) {
+type RabbitMQConfig struct {
+	RabbitMQConnectionUrl   string
+	RabbitMQQueueName       string
+	RabbitMQConsumerName    string
+	RabbitMQExchangeDLQName string
+}
+
+type RabbitMQConnection struct {
+	RabbitMQConnection *amqp.Connection
+	RabbitMQChannel    *amqp.Channel
+	RabbitMQConfig     *RabbitMQConfig
+}
+
+func NewRabbitMQConnection(cfg *config.AppConfig) *RabbitMQConnection {
 	conn, err := amqp.Dial(cfg.RabbitMQConnectionUrl)
 	if err != nil {
-		return nil, err
+		panic(err)
 	}
 	ch, err := conn.Channel()
 	if err != nil {
-		return nil, err
+		panic(err)
 	}
-	return ch, nil
+	return &RabbitMQConnection{
+		RabbitMQConnection: conn,
+		RabbitMQChannel:    ch,
+		RabbitMQConfig: &RabbitMQConfig{
+			cfg.RabbitMQConnectionUrl,
+			cfg.RabbitMQQueueName,
+			cfg.RabbitMQQueueConsumerName,
+			cfg.RabbitMQQueueExchangeDLQ,
+		},
+	}
+
 }
 
-func Cosume(ch *amqp.Channel, cfg *config.AppConfig, out chan amqp.Delivery) error {
-	msgs, err := ch.Consume(
-		cfg.RabbitMQQueueName,
-		cfg.RabbitMQQueueConsumerName,
+func (rc *RabbitMQConnection) Cosume(out chan amqp.Delivery) error {
+	msgs, err := rc.RabbitMQChannel.Consume(
+		rc.RabbitMQConfig.RabbitMQQueueName,
+		rc.RabbitMQConfig.RabbitMQConsumerName,
 		false,
 		false,
 		false,
@@ -40,7 +63,7 @@ func Cosume(ch *amqp.Channel, cfg *config.AppConfig, out chan amqp.Delivery) err
 	return nil
 }
 
-func Publish(ch *amqp.Channel, cfg *config.AppConfig, msg []byte) error {
+func (rc *RabbitMQConnection) Publish(msg []byte) error {
 	mp := amqp.Publishing{
 		DeliveryMode: amqp.Persistent,
 		Timestamp:    time.Now(),
@@ -50,9 +73,9 @@ func Publish(ch *amqp.Channel, cfg *config.AppConfig, msg []byte) error {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	return ch.PublishWithContext(
+	return rc.RabbitMQChannel.PublishWithContext(
 		ctx,
-		cfg.RabbitMQQueueExchangeDLQ,
+		rc.RabbitMQConfig.RabbitMQExchangeDLQName,
 		"",
 		false,
 		false,
